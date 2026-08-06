@@ -1,0 +1,113 @@
+"""Parse Executive House interview transcript PDFs into speaker turns and chunks.
+
+Transcript format: "Speaker Name: text ..." paragraphs with inline [HH:MM:SS]
+timestamp markers roughly once per minute.
+"""
+
+import re
+from dataclasses import dataclass, field
+from pathlib import Path
+
+import fitz  # pymupdf
+
+TIMESTAMP_RE = re.compile(r"\[(\d{2}:\d{2}:\d{2})\]")
+# Speaker labels: 1-4 capitalized words followed by a colon at line start
+SPEAKER_RE = re.compile(r"^([A-Z][\w.'-]*(?: [A-Z][\w.'-]*){0,3}):\s*(.*)$")
+
+
+@dataclass
+class Turn:
+    speaker: str
+    text: str
+    page: int          # 1-indexed page where the turn starts
+    timestamp: str     # last [HH:MM:SS] marker seen at or before this turn
+
+
+@dataclass
+class Chunk:
+    chunk_id: str
+    source: str        # transcript display name
+    text: str          # "Speaker: text" lines joined
+    speakers: list[str]
+    ts_start: str
+    ts_end: str
+    page_start: int
+    page_end: int
+    index: int = field(default=0)
+
+
+def parse_transcript(pdf_path: Path, source_name: str) -> list[Turn]:
+    doc = fitz.open(pdf_path)
+    turns: list[Turn] = []
+    current_ts = "00:00:00"
+
+    for page_num, page in enumerate(doc, start=1):
+        text = page.get_text("text")
+        for raw_line in text.splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            # advance the running timestamp with any marker on this line
+            ts_matches = TIMESTAMP_RE.findall(line)
+            m = SPEAKER_RE.match(line)
+            if m and len(m.group(1)) <= 40:
+                speaker, rest = m.group(1), m.group(2)
+                rest = TIMESTAMP_RE.sub("", rest).strip()
+                turns.append(Turn(speaker=speaker, text=rest, page=page_num, timestamp=current_ts))
+            else:
+                cleaned = TIMESTAMP_RE.sub("", line).strip()
+                if cleaned and turns:
+                    # continuation of the previous speaker's paragraph
+                    turns[-1].text = (turns[-1].text + " " + cleaned).strip()
+                # a title line before any speaker turn is dropped
+            if ts_matches:
+                current_ts = ts_matches[-1]
+    doc.close()
+    return [t for t in turns if t.text]
+
+
+def chunk_turns(
+    turns: list[Turn],
+    source_name: str,
+    target_chars: int = 1500,
+    overlap_turns: int = 2,
+) -> list[Chunk]:
+    chunks: list[Chunk] = []
+    buf: list[Turn] = []
+    buf_chars = 0
+    i = 0
+
+    def flush(buffer: list[Turn]) -> None:
+        if not buffer:
+            return
+        idx = len(chunks)
+        text = "\n".join(f"{t.speaker}: {t.text}" for t in buffer)
+        speakers = sorted({t.speaker for t in buffer})
+        chunks.append(
+            Chunk(
+                chunk_id=f"{source_name}::chunk-{idx}",
+                source=source_name,
+                text=text,
+                speakers=speakers,
+                ts_start=buffer[0].timestamp,
+                ts_end=buffer[-1].timestamp,
+                page_start=buffer[0].page,
+                page_end=buffer[-1].page,
+                index=idx,
+            )
+        )
+
+    while i < len(turns):
+        t = turns[i]
+        buf.append(t)
+        buf_chars += len(t.text)
+        if buf_chars >= target_chars:
+            flush(buf)
+            # start next chunk with a small overlap for context continuity
+            buf = buf[-overlap_turns:] if overlap_turns else []
+            buf_chars = sum(len(x.text) for x in buf)
+        i += 1
+    # flush remainder if it holds anything beyond the overlap carryover
+    if buf and sum(len(x.text) for x in buf) > 200:
+        flush(buf)
+    return chunks
