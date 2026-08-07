@@ -25,6 +25,10 @@ class SessionCreate(BaseModel):
     title: str = "New session"
 
 
+class SessionRename(BaseModel):
+    title: str
+
+
 @app.get("/api/health")
 def health():
     return {
@@ -49,6 +53,21 @@ def create_session(body: SessionCreate):
 @app.get("/api/sessions")
 def list_sessions():
     return db.list_sessions(username="admin")
+
+
+@app.patch("/api/sessions/{session_id}")
+def rename_session(session_id: str, body: SessionRename):
+    title = body.title.strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="Empty title")
+    db.rename_session(session_id, title[:80])
+    return {"ok": True}
+
+
+@app.delete("/api/sessions/{session_id}")
+def delete_session(session_id: str):
+    db.delete_session(session_id)
+    return {"ok": True}
 
 
 @app.get("/api/sessions/{session_id}/messages")

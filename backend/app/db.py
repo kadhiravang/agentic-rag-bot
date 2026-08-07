@@ -90,6 +90,18 @@ def rename_session(session_id: str, title: str) -> None:
     conn.commit()
 
 
+def delete_session(session_id: str) -> None:
+    conn = get_conn()
+    conn.execute(
+        "DELETE FROM citations WHERE message_id IN "
+        "(SELECT id FROM messages WHERE session_id = ?)",
+        (session_id,),
+    )
+    conn.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
+    conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+    conn.commit()
+
+
 def add_message(
     session_id: str,
     role: str,

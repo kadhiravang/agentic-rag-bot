@@ -19,6 +19,16 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title }),
     }).then((r) => json<Session>(r)),
+  renameSession: (sessionId: string, title: string) =>
+    fetch(`/api/sessions/${sessionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    }).then((r) => json<{ ok: boolean }>(r)),
+  deleteSession: (sessionId: string) =>
+    fetch(`/api/sessions/${sessionId}`, { method: "DELETE" }).then((r) =>
+      json<{ ok: boolean }>(r),
+    ),
   getMessages: (sessionId: string) =>
     fetch(`/api/sessions/${sessionId}/messages`).then((r) => json<Message[]>(r)),
   ask: (sessionId: string, question: string) =>

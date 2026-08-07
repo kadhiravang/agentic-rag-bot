@@ -42,6 +42,9 @@ export default function App() {
   const [selectedMsg, setSelectedMsg] = useState<Message | null>(null);
   const [tab, setTab] = useState<"refs" | "trace">("refs");
   const [highlighted, setHighlighted] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [armedDeleteId, setArmedDeleteId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -71,6 +74,30 @@ export default function App() {
     const lastAssistant = [...msgs].reverse().find((m) => m.role === "assistant");
     setSelectedMsg(lastAssistant ?? null);
     setHighlighted(null);
+  }
+
+  async function commitRename(id: string) {
+    const title = editTitle.trim();
+    setEditingId(null);
+    if (!title) return;
+    await api.renameSession(id, title);
+    setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, title } : s)));
+  }
+
+  async function removeSession(id: string) {
+    setArmedDeleteId(null);
+    await api.deleteSession(id);
+    const remaining = sessions.filter((s) => s.id !== id);
+    setSessions(remaining);
+    if (activeSession === id) {
+      if (remaining.length) {
+        selectSession(remaining[0].id);
+      } else {
+        setActiveSession(null);
+        setMessages([]);
+        setSelectedMsg(null);
+      }
+    }
   }
 
   async function newSession() {
@@ -140,9 +167,9 @@ export default function App() {
     <>
       <header className="header">
         <span className="logo">
-          Executive <em>Oracle</em>
+          Salvi <em>· Executive Oracle</em>
         </span>
-        <span className="subtitle">Salvi · Executive House transcripts</span>
+        <span className="subtitle">Executive House transcripts</span>
         <span className="spacer" />
         {health && (
           <span className="badge">
@@ -167,10 +194,66 @@ export default function App() {
               <div
                 key={s.id}
                 className={`session-item ${s.id === activeSession ? "active" : ""}`}
-                onClick={() => selectSession(s.id)}
+                onClick={() => editingId !== s.id && selectSession(s.id)}
                 title={s.title}
               >
-                {s.title}
+                {editingId === s.id ? (
+                  <input
+                    className="rename-input"
+                    value={editTitle}
+                    autoFocus
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    onBlur={() => commitRename(s.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitRename(s.id);
+                      if (e.key === "Escape") setEditingId(null);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <>
+                    <span className="session-title">{s.title}</span>
+                    <span className="session-actions">
+                      {armedDeleteId === s.id ? (
+                        <button
+                          className="confirm-delete"
+                          title="Click to confirm delete"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeSession(s.id);
+                          }}
+                          onMouseLeave={() => setArmedDeleteId(null)}
+                        >
+                          Delete?
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            className="icon-btn"
+                            title="Rename"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingId(s.id);
+                              setEditTitle(s.title);
+                            }}
+                          >
+                            ✎
+                          </button>
+                          <button
+                            className="icon-btn danger"
+                            title="Delete"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setArmedDeleteId(s.id);
+                            }}
+                          >
+                            🗑
+                          </button>
+                        </>
+                      )}
+                    </span>
+                  </>
+                )}
               </div>
             ))}
           </div>
