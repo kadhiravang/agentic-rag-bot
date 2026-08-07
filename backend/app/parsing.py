@@ -6,7 +6,6 @@ timestamp markers roughly once per minute.
 
 import re
 from dataclasses import dataclass, field
-from pathlib import Path
 
 import fitz  # pymupdf
 
@@ -36,39 +35,11 @@ class Chunk:
     index: int = field(default=0)
 
 
-def parse_transcript(pdf_path: Path, source_name: str) -> list[Turn]:
-    doc = fitz.open(pdf_path)
-    turns: list[Turn] = []
-    current_ts = "00:00:00"
-
-    for page_num, page in enumerate(doc, start=1):
-        text = page.get_text("text")
-        for raw_line in text.splitlines():
-            line = raw_line.strip()
-            if not line:
-                continue
-            # advance the running timestamp with any marker on this line
-            ts_matches = TIMESTAMP_RE.findall(line)
-            m = SPEAKER_RE.match(line)
-            if m and len(m.group(1)) <= 40:
-                speaker, rest = m.group(1), m.group(2)
-                rest = TIMESTAMP_RE.sub("", rest).strip()
-                turns.append(Turn(speaker=speaker, text=rest, page=page_num, timestamp=current_ts))
-            else:
-                cleaned = TIMESTAMP_RE.sub("", line).strip()
-                if cleaned and turns:
-                    # continuation of the previous speaker's paragraph
-                    turns[-1].text = (turns[-1].text + " " + cleaned).strip()
-                # a title line before any speaker turn is dropped
-            if ts_matches:
-                current_ts = ts_matches[-1]
-    doc.close()
-    return [t for t in turns if t.text]
-
-
 def parse_pdf_bytes(data: bytes) -> list[Turn]:
-    """Same speaker-turn parser as parse_transcript, but from in-memory bytes
-    (for user-uploaded files, which arrive over HTTP rather than from disk)."""
+    """Detect speaker-labeled transcript turns ("Speaker: text" lines, with
+    inline [HH:MM:SS] markers) from an in-memory PDF. Returns [] if the PDF
+    doesn't look like a speaker-labeled transcript - callers should fall back
+    to chunk_plain_pages() in that case."""
     doc = fitz.open(stream=data, filetype="pdf")
     turns: list[Turn] = []
     current_ts = "00:00:00"

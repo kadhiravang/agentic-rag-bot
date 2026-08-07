@@ -6,7 +6,7 @@ locally with FastEmbed at upsert/query time.
 Scoping: every point carries a session_id payload field and is only ever
 retrievable by that exact session. Sessions are fully isolated - there is no
 shared/global scope. A session's corpus is exactly the files that have been
-loaded or uploaded into it (see main.py and defaults.py).
+uploaded into it (see main.py).
 """
 
 import uuid

@@ -47,7 +47,6 @@ export default function App() {
   const [armedDeleteId, setArmedDeleteId] = useState<string | null>(null);
   const [sessionFiles, setSessionFiles] = useState<SessionFile[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [loadingDefaults, setLoadingDefaults] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -89,20 +88,6 @@ export default function App() {
     setActiveSession(s.id);
     setSessionFiles([]);
     return s.id;
-  }
-
-  async function handleLoadDefaults() {
-    setError(null);
-    setLoadingDefaults(true);
-    try {
-      const sid = await ensureSession();
-      const added = await api.loadDefaults(sid);
-      setSessionFiles((prev) => [...prev, ...added]);
-    } catch (err: any) {
-      setError(err.message ?? "Could not load the Executive House transcripts");
-    } finally {
-      setLoadingDefaults(false);
-    }
   }
 
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
@@ -318,25 +303,18 @@ export default function App() {
                 </h2>
                 <p>
                   Every session has its own isolated knowledge base — nothing is
-                  shared or preloaded. Load the Salvi Executive House transcripts,
-                  add your own PDF, or both.
+                  shared or preloaded. Add the PDFs you want this session to know
+                  about.
                 </p>
                 <p>Answers are grounded and cited. If it isn't in this session's documents, the Oracle says so.</p>
                 {sessionFiles.length === 0 && (
                   <div className="empty-actions">
                     <button
                       className="empty-cta primary"
-                      onClick={handleLoadDefaults}
-                      disabled={loadingDefaults}
-                    >
-                      {loadingDefaults ? "Loading…" : "Load Executive House transcripts"}
-                    </button>
-                    <button
-                      className="empty-cta"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploading}
                     >
-                      {uploading ? "Uploading…" : "+ Add your own PDF"}
+                      {uploading ? "Uploading…" : "+ Add a PDF"}
                     </button>
                   </div>
                 )}
@@ -371,27 +349,16 @@ export default function App() {
 
           <div className="corpus-bar">
             <span className="corpus-label">This session:</span>
-            {sessionFiles.length === 0 && !uploading && !loadingDefaults && (
+            {sessionFiles.length === 0 && !uploading && (
               <span className="corpus-empty">no documents loaded yet</span>
             )}
             {sessionFiles.map((f) => (
-              <span key={f.id} className={`corpus-chip ${f.kind === "default" ? "default" : ""}`}>
+              <span key={f.id} className="corpus-chip">
                 {f.filename}
                 <span className="corpus-chip-count">{f.chunks}</span>
               </span>
             ))}
-            {loadingDefaults && <span className="corpus-chip uploading">Loading Executive House transcripts…</span>}
             {uploading && <span className="corpus-chip uploading">Uploading…</span>}
-            {!sessionFiles.some((f) => f.kind === "default") && (
-              <button
-                className="corpus-add"
-                onClick={handleLoadDefaults}
-                disabled={loadingDefaults}
-                title="Load the two known Salvi transcripts into this session"
-              >
-                Load Executive House transcripts
-              </button>
-            )}
             <button
               className="corpus-add"
               onClick={() => fileInputRef.current?.click()}

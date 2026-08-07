@@ -33,10 +33,6 @@ export const api = {
     fetch(`/api/sessions/${sessionId}/messages`).then((r) => json<Message[]>(r)),
   listFiles: (sessionId: string) =>
     fetch(`/api/sessions/${sessionId}/files`).then((r) => json<SessionFile[]>(r)),
-  loadDefaults: (sessionId: string) =>
-    fetch(`/api/sessions/${sessionId}/load-defaults`, { method: "POST" }).then((r) =>
-      json<SessionFile[]>(r),
-    ),
   uploadFile: (sessionId: string, file: File) => {
     const form = new FormData();
     form.append("file", file);

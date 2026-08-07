@@ -254,7 +254,6 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.corpus-chip.default { background: var(--accent-soft); border-color: #d3e7db; color: var(--accent-dark); font-weight: 500; }
 .corpus-chip.uploading { color: var(--text-dim); font-style: italic; }
 .corpus-chip-count {
   background: #fff;
