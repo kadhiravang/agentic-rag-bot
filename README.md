@@ -7,16 +7,17 @@ is cited (document → speaker → timestamp → page), and questions the loaded
 don't cover get an honest *"this wasn't covered in the provided transcripts"* instead
 of a guess.
 
-For the Salvi assignment specifically: click **"Load Executive House transcripts"**
-in a session to load the two provided PDFs (Eventbrite's Julia & Kevin Hartz, QED
-Investors/Capital One's Nigel Morris) into that session, then ask the 3 questions.
+For the Salvi assignment specifically: in a session, click **"+ Add PDF"** and
+upload the two provided transcripts (`transcripts/Eventbrite Stringout
+Transcript.docx.pdf` and `transcripts/QED Investors _ Capital One
+Transcript.docx.pdf`), then ask the 3 questions.
 
 ## Architecture
 
 ```
 PDF ──► parser (PyMuPDF) ──► speaker-turn chunks ──► FastEmbed ──► Qdrant (embedded)
-  ▲  loaded per-session, tagged with that session_id — never shared    │
-"Load Executive House transcripts" (2 known files) or "+ Add PDF" (any file)
+  ▲  uploaded per-session, tagged with that session_id — never shared  │
+                    "+ Add PDF" (any file, any session)                │
                                                                         │
 User ──► React UI ──► FastAPI ──► LangGraph agent ─────────────────────┘
                          │            rewrite → retrieve (session-scoped) ─┬─► answer (cited)
@@ -42,12 +43,11 @@ User ──► React UI ──► FastAPI ──► LangGraph agent ────
   (rewrite/grade use Gemini 2.5 Flash-Lite; models configurable in `.env`)
 - **Persistence** — SQLite tracks users (admin for now), sessions (renamable,
   deletable), messages, per-answer citations, and per-session files.
-- **UI** — React + Vite: a "This session:" sources bar showing exactly what's
-  loaded (with one-click "Load Executive House transcripts" and "+ Add PDF"), the
-  3 assigned questions as presets, a **References** side tab (who said it,
-  timestamp, page, quote, retrieval score) and an **Agent trace** tab showing each
-  step the agent took. Sessions can be renamed and deleted (which also purges that
-  session's vectors).
+- **UI** — React + Vite: a "This session:" sources bar showing exactly what's been
+  uploaded (via "+ Add PDF"), the 3 assigned questions as presets, a **References**
+  side tab (who said it, timestamp, page, quote, retrieval score) and an **Agent
+  trace** tab showing each step the agent took. Sessions can be renamed and
+  deleted (which also purges that session's vectors).
 
 ## Run it
 
