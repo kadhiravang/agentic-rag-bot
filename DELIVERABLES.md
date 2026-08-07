@@ -39,13 +39,13 @@ fresh session open before recording.
 2. **Architecture (0:20–1:00)** — show the README diagram. One sentence per stage:
    parse → chunk → embed (local) → Qdrant (session-scoped); question → LangGraph
    agent (rewrite, retrieve, grade, answer) → cited answer; SQLite for sessions.
-3. **New session, upload the transcripts (1:00–1:35)** — click **+ New session**,
-   show it's genuinely empty ("This session is empty"), click **+ Add a PDF** and
-   upload the Eventbrite transcript, then click **+ Add PDF** again in the sources
-   bar and upload the QED/Capital One transcript. Say in one line: "Every session
-   owns exactly the documents you upload into it — nothing's preloaded or shared
-   across sessions; there's no special-casing for these two files either."
-4. **Question 1 (1:35–2:25)** — click preset 1. While it runs, point at the status
+3. **New session, upload the transcripts (1:00–1:25)** — click **+ New session**,
+   show it's genuinely empty ("This session is empty"), click **+ Add PDFs** and
+   select both transcript files at once in the file picker (Ctrl/Shift-click). Say
+   in one line: "Every session owns exactly the documents you upload into it —
+   nothing's preloaded or shared across sessions; there's no special-casing for
+   these two files either."
+4. **Question 1 (1:25–2:15)** — click preset 1. While it runs, point at the status
    line ("rewrite → retrieve → grade → answer"). When the answer lands: read a
    sentence, click a citation chip → References panel highlights the source card —
    call out transcript name, speaker, timestamp, page, quote.
