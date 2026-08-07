@@ -30,10 +30,15 @@ User ──► React UI ──► FastAPI ──► LangGraph agent ────
   5. *answer*: Gemini 2.5 Flash answers **only** from surviving chunks, with
      structured output enforcing inline `[n]` citations + verbatim supporting quotes
   (rewrite/grade use Gemini 2.5 Flash-Lite; models configurable in `.env`)
-- **Persistence** — SQLite tracks users (admin for now), sessions, messages, and
-  per-answer citations.
-- **UI** — React + Vite: chat with the 3 assigned questions as presets, a
-  **References** side tab (who said it, timestamp, page, quote, retrieval score)
+- **Persistence** — SQLite tracks users (admin for now), sessions (renamable,
+  deletable), messages, per-answer citations, and per-session uploaded files.
+- **Per-session scoping** — every vector in Qdrant carries a `session_id` payload.
+  The two Salvi transcripts are tagged `global` and answerable from any session;
+  a session that uploads its own PDF gets a chunk set tagged with that session's
+  real ID, so it's answerable there and invisible to every other session.
+- **UI** — React + Vite: chat with the 3 assigned questions as presets, a Sources
+  bar showing what's in scope for the current session plus an "+ Add PDF" upload,
+  a **References** side tab (who said it, timestamp, page, quote, retrieval score)
   and an **Agent trace** tab showing each step the agent took.
 
 ## Run it

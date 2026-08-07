@@ -47,6 +47,7 @@ export default function App() {
   const [armedDeleteId, setArmedDeleteId] = useState<string | null>(null);
   const [sessionFiles, setSessionFiles] = useState<SessionFile[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [loadingDefaults, setLoadingDefaults] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -88,6 +89,20 @@ export default function App() {
     setActiveSession(s.id);
     setSessionFiles([]);
     return s.id;
+  }
+
+  async function handleLoadDefaults() {
+    setError(null);
+    setLoadingDefaults(true);
+    try {
+      const sid = await ensureSession();
+      const added = await api.loadDefaults(sid);
+      setSessionFiles((prev) => [...prev, ...added]);
+    } catch (err: any) {
+      setError(err.message ?? "Could not load the Executive House transcripts");
+    } finally {
+      setLoadingDefaults(false);
+    }
   }
 
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
@@ -298,17 +313,33 @@ export default function App() {
           <div className="messages">
             {messages.length === 0 && !busy && (
               <div className="empty-state">
-                <h2>Ask the transcripts</h2>
+                <h2>
+                  {sessionFiles.length === 0 ? "This session is empty" : "Ask this session's documents"}
+                </h2>
                 <p>
-                  Grounded answers from the Eventbrite (Julia &amp; Kevin Hartz) and
-                  QED Investors / Capital One (Nigel Morris) Executive House
-                  interviews — with citations to who said it, when, and where.
+                  Every session has its own isolated knowledge base — nothing is
+                  shared or preloaded. Load the Salvi Executive House transcripts,
+                  add your own PDF, or both.
                 </p>
-                <p>If it isn't in the transcripts, the Oracle says so.</p>
-                <p>
-                  You can also add your own PDF transcript to this session — it's
-                  only visible here, never in other sessions.
-                </p>
+                <p>Answers are grounded and cited. If it isn't in this session's documents, the Oracle says so.</p>
+                {sessionFiles.length === 0 && (
+                  <div className="empty-actions">
+                    <button
+                      className="empty-cta primary"
+                      onClick={handleLoadDefaults}
+                      disabled={loadingDefaults}
+                    >
+                      {loadingDefaults ? "Loading…" : "Load Executive House transcripts"}
+                    </button>
+                    <button
+                      className="empty-cta"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                    >
+                      {uploading ? "Uploading…" : "+ Add your own PDF"}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
             {messages.map((m) => (
@@ -339,20 +370,33 @@ export default function App() {
           {error && <div className="error-banner">{error}</div>}
 
           <div className="corpus-bar">
-            <span className="corpus-label">Sources:</span>
-            <span className="corpus-chip default">Salvi Executive House transcripts</span>
+            <span className="corpus-label">This session:</span>
+            {sessionFiles.length === 0 && !uploading && !loadingDefaults && (
+              <span className="corpus-empty">no documents loaded yet</span>
+            )}
             {sessionFiles.map((f) => (
-              <span key={f.id} className="corpus-chip">
+              <span key={f.id} className={`corpus-chip ${f.kind === "default" ? "default" : ""}`}>
                 {f.filename}
                 <span className="corpus-chip-count">{f.chunks}</span>
               </span>
             ))}
+            {loadingDefaults && <span className="corpus-chip uploading">Loading Executive House transcripts…</span>}
             {uploading && <span className="corpus-chip uploading">Uploading…</span>}
+            {!sessionFiles.some((f) => f.kind === "default") && (
+              <button
+                className="corpus-add"
+                onClick={handleLoadDefaults}
+                disabled={loadingDefaults}
+                title="Load the two known Salvi transcripts into this session"
+              >
+                Load Executive House transcripts
+              </button>
+            )}
             <button
               className="corpus-add"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              title="Add a PDF transcript to this session only"
+              title="Add a PDF to this session only"
             >
               + Add PDF
             </button>

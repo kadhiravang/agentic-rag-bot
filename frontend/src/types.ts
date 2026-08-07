@@ -39,6 +39,7 @@ export interface SessionFile {
   session_id: string;
   filename: string;
   chunks: number;
+  kind: "default" | "upload";
   created_at: string;
 }
 

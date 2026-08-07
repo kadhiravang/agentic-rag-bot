@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from . import agent, config, db, vectorstore
+from .defaults import load_default_transcripts
 from .parsing import chunk_plain_pages, chunk_turns, parse_pdf_bytes
 
 app = FastAPI(title="Executive Oracle API")
@@ -80,6 +81,26 @@ def get_messages(session_id: str):
 @app.get("/api/sessions/{session_id}/files")
 def list_files(session_id: str):
     return db.list_session_files(session_id)
+
+
+@app.post("/api/sessions/{session_id}/load-defaults")
+def load_defaults(session_id: str):
+    """Load the two known Salvi Executive House transcripts into this session
+    only. An explicit, per-session action - never automatic, never shared."""
+    existing = db.list_session_files(session_id)
+    if any(f["kind"] == "default" for f in existing):
+        raise HTTPException(status_code=400, detail="Default transcripts already loaded in this session")
+
+    try:
+        loaded = load_default_transcripts(session_id)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    records = [
+        db.add_session_file(session_id, item["filename"], item["chunks"], kind="default")
+        for item in loaded
+    ]
+    return records
 
 
 @app.post("/api/sessions/{session_id}/files")

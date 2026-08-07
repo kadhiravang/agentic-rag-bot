@@ -3,11 +3,10 @@
 Uses qdrant-client's local inference: models.Document values are embedded
 locally with FastEmbed at upsert/query time.
 
-Scoping: every point carries a session_id payload field. The shared Salvi
-transcripts (ingested once via ingest.py) use config.SHARED_SCOPE, so every
-session can query them. Session-uploaded files are tagged with the real
-session id, so they're only ever visible inside that session - isolated from
-every other session's uploads.
+Scoping: every point carries a session_id payload field and is only ever
+retrievable by that exact session. Sessions are fully isolated - there is no
+shared/global scope. A session's corpus is exactly the files that have been
+loaded or uploaded into it (see main.py and defaults.py).
 """
 
 import uuid
@@ -77,16 +76,13 @@ def index_chunks(chunks: list[Chunk], session_id: str) -> int:
     return len(chunks)
 
 
-def _scope_filter(session_id: str | None) -> models.Filter:
-    scopes = [config.SHARED_SCOPE]
-    if session_id and session_id != config.SHARED_SCOPE:
-        scopes.append(session_id)
+def _scope_filter(session_id: str) -> models.Filter:
     return models.Filter(
-        must=[models.FieldCondition(key="session_id", match=models.MatchAny(any=scopes))]
+        must=[models.FieldCondition(key="session_id", match=models.MatchValue(value=session_id))]
     )
 
 
-def search(query: str, limit: int, session_id: str | None = None) -> list[dict]:
+def search(query: str, limit: int, session_id: str) -> list[dict]:
     client = get_client()
     if not client.collection_exists(config.COLLECTION):
         return []
@@ -115,7 +111,7 @@ def search(query: str, limit: int, session_id: str | None = None) -> list[dict]:
     return results
 
 
-def search_balanced(query: str, session_id: str | None) -> list[dict]:
+def search_balanced(query: str, session_id: str) -> list[dict]:
     """Retrieve broadly then cap how many chunks any single source document can
     contribute, so one talkative or oversampled file can't crowd out the rest."""
     candidates = search(query, limit=config.TOP_K * 3, session_id=session_id)
@@ -139,19 +135,13 @@ def search_balanced(query: str, session_id: str | None) -> list[dict]:
 
 
 def delete_session_data(session_id: str) -> None:
-    """Purge every point uploaded within one session. Never call with SHARED_SCOPE."""
-    if session_id == config.SHARED_SCOPE:
-        return
+    """Purge every point belonging to one session (called when the session is deleted)."""
     client = get_client()
     if not client.collection_exists(config.COLLECTION):
         return
     client.delete(
         collection_name=config.COLLECTION,
-        points_selector=models.FilterSelector(
-            filter=models.Filter(
-                must=[models.FieldCondition(key="session_id", match=models.MatchValue(value=session_id))]
-            )
-        ),
+        points_selector=models.FilterSelector(filter=_scope_filter(session_id)),
     )
 
 

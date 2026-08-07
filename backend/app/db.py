@@ -41,6 +41,7 @@ def get_conn() -> sqlite3.Connection:
                 session_id TEXT NOT NULL REFERENCES sessions(id),
                 filename TEXT NOT NULL,
                 chunks INTEGER NOT NULL,
+                kind TEXT NOT NULL DEFAULT 'upload',
                 created_at TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS citations (
@@ -110,16 +111,16 @@ def delete_session(session_id: str) -> None:
     conn.commit()
 
 
-def add_session_file(session_id: str, filename: str, chunks: int) -> dict:
+def add_session_file(session_id: str, filename: str, chunks: int, kind: str = "upload") -> dict:
     conn = get_conn()
     fid = str(uuid.uuid4())
     conn.execute(
-        "INSERT INTO session_files (id, session_id, filename, chunks, created_at) "
-        "VALUES (?, ?, ?, ?, ?)",
-        (fid, session_id, filename, chunks, _now()),
+        "INSERT INTO session_files (id, session_id, filename, chunks, kind, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (fid, session_id, filename, chunks, kind, _now()),
     )
     conn.commit()
-    return {"id": fid, "session_id": session_id, "filename": filename, "chunks": chunks}
+    return {"id": fid, "session_id": session_id, "filename": filename, "chunks": chunks, "kind": kind}
 
 
 def list_session_files(session_id: str) -> list[dict]:

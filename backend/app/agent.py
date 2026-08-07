@@ -83,7 +83,7 @@ def rewrite_query(state: AgentState) -> AgentState:
 
 
 def retrieve(state: AgentState) -> AgentState:
-    hits = vectorstore.search_balanced(state["query"], session_id=state.get("session_id"))
+    hits = vectorstore.search_balanced(state["query"], session_id=state["session_id"])
     trace = state.get("trace", []) + [
         {
             "step": "retrieve",
