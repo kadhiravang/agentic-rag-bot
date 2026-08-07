@@ -1,26 +1,36 @@
 # Executive Oracle — Salvi Round 2 Build Exercise
 
-Grounded Q&A over Salvi's **Executive House** interview transcripts, built as an
-**agentic RAG** pipeline. Answers come only from the two provided transcripts, every
-claim is cited (transcript → speaker → timestamp → page), and questions the
-transcripts don't cover get an honest *"this wasn't covered in the provided
-transcripts"* instead of a guess.
+Grounded Q&A over PDF transcripts, built as an **agentic RAG** pipeline with a fully
+**session-scoped knowledge base** — every session starts empty and owns exactly the
+documents you add to it, isolated from every other session. Every claim in an answer
+is cited (document → speaker → timestamp → page), and questions the loaded documents
+don't cover get an honest *"this wasn't covered in the provided transcripts"* instead
+of a guess.
+
+For the Salvi assignment specifically: click **"Load Executive House transcripts"**
+in a session to load the two provided PDFs (Eventbrite's Julia & Kevin Hartz, QED
+Investors/Capital One's Nigel Morris) into that session, then ask the 3 questions.
 
 ## Architecture
 
 ```
-PDFs ──► parser (PyMuPDF) ──► speaker-turn chunks ──► FastEmbed ──► Qdrant (embedded)
+PDF ──► parser (PyMuPDF) ──► speaker-turn chunks ──► FastEmbed ──► Qdrant (embedded)
+  ▲  loaded per-session, tagged with that session_id — never shared    │
+"Load Executive House transcripts" (2 known files) or "+ Add PDF" (any file)
                                                                         │
 User ──► React UI ──► FastAPI ──► LangGraph agent ─────────────────────┘
-                         │            rewrite → retrieve → grade ─┬─► answer (cited)
-                       SQLite                    ▲                ├─► retry (1x)
-               (users/sessions/messages)         └── rewrite ◄────┴─► not covered
+                         │            rewrite → retrieve (session-scoped) ─┬─► answer (cited)
+                       SQLite                    ▲                grade ──┼─► retry (1x)
+               (users/sessions/files/messages)   └── rewrite ◄────────────┴─► not covered
 ```
 
-- **Ingestion** — transcripts are parsed into speaker turns (keeping the inline
-  `[HH:MM:SS]` markers and page numbers), grouped into ~1500-char chunks with
-  overlap, embedded locally with FastEmbed (`bge-small-en-v1.5`), and stored in
-  **Qdrant** (embedded on-disk mode — same API as server Qdrant).
+- **Ingestion** — PDFs are parsed into speaker turns (keeping inline `[HH:MM:SS]`
+  markers and page numbers), grouped into ~1500-char chunks with overlap, embedded
+  locally with FastEmbed (`bge-small-en-v1.5`), and stored in **Qdrant** (embedded
+  on-disk mode — same API as server Qdrant). Every point carries a `session_id`
+  payload; retrieval is a hard filter on that field, so sessions never see each
+  other's documents. A generic (non-speaker-labeled) PDF falls back to plain
+  page-based chunking.
 - **Agent (LangGraph)** — a small self-corrective graph:
   1. *rewrite*: turn the question into a retrieval query (Claude Haiku)
   2. *retrieve*: top-k semantic search from Qdrant
@@ -31,15 +41,13 @@ User ──► React UI ──► FastAPI ──► LangGraph agent ────
      structured output enforcing inline `[n]` citations + verbatim supporting quotes
   (rewrite/grade use Gemini 2.5 Flash-Lite; models configurable in `.env`)
 - **Persistence** — SQLite tracks users (admin for now), sessions (renamable,
-  deletable), messages, per-answer citations, and per-session uploaded files.
-- **Per-session scoping** — every vector in Qdrant carries a `session_id` payload.
-  The two Salvi transcripts are tagged `global` and answerable from any session;
-  a session that uploads its own PDF gets a chunk set tagged with that session's
-  real ID, so it's answerable there and invisible to every other session.
-- **UI** — React + Vite: chat with the 3 assigned questions as presets, a Sources
-  bar showing what's in scope for the current session plus an "+ Add PDF" upload,
-  a **References** side tab (who said it, timestamp, page, quote, retrieval score)
-  and an **Agent trace** tab showing each step the agent took.
+  deletable), messages, per-answer citations, and per-session files.
+- **UI** — React + Vite: a "This session:" sources bar showing exactly what's
+  loaded (with one-click "Load Executive House transcripts" and "+ Add PDF"), the
+  3 assigned questions as presets, a **References** side tab (who said it,
+  timestamp, page, quote, retrieval score) and an **Agent trace** tab showing each
+  step the agent took. Sessions can be renamed and deleted (which also purges that
+  session's vectors).
 
 ## Run it
 
@@ -50,7 +58,6 @@ cd backend
 py -3.12 -m venv .venv          # once
 .venv\Scripts\pip install -r requirements.txt
 copy .env.example .env          # then put your GEMINI_API_KEY in .env (free: aistudio.google.com/apikey)
-.venv\Scripts\python -m app.ingest        # parse + index the transcripts (once)
 .venv\Scripts\uvicorn app.main:app --port 8000
 ```
 
