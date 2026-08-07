@@ -47,6 +47,7 @@ export default function App() {
   const [armedDeleteId, setArmedDeleteId] = useState<string | null>(null);
   const [sessionFiles, setSessionFiles] = useState<SessionFile[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -91,19 +92,30 @@ export default function App() {
   }
 
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!file) return;
+    if (files.length === 0) return;
     setError(null);
     setUploading(true);
+    setUploadProgress({ current: 0, total: files.length });
     try {
       const sid = await ensureSession();
-      const record = await api.uploadFile(sid, file);
-      setSessionFiles((prev) => [...prev, record]);
+      const failures: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        try {
+          const record = await api.uploadFile(sid, files[i]);
+          setSessionFiles((prev) => [...prev, record]);
+        } catch (err: any) {
+          failures.push(`${files[i].name}: ${err.message ?? "upload failed"}`);
+        }
+        setUploadProgress({ current: i + 1, total: files.length });
+      }
+      if (failures.length) setError(failures.join(" · "));
     } catch (err: any) {
       setError(err.message ?? "Upload failed");
     } finally {
       setUploading(false);
+      setUploadProgress(null);
     }
   }
 
@@ -314,7 +326,9 @@ export default function App() {
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploading}
                     >
-                      {uploading ? "Uploading…" : "+ Add a PDF"}
+                      {uploadProgress
+                        ? `Uploading ${uploadProgress.current}/${uploadProgress.total}…`
+                        : "+ Add PDFs"}
                     </button>
                   </div>
                 )}
@@ -358,19 +372,26 @@ export default function App() {
                 <span className="corpus-chip-count">{f.chunks}</span>
               </span>
             ))}
-            {uploading && <span className="corpus-chip uploading">Uploading…</span>}
+            {uploading && (
+              <span className="corpus-chip uploading">
+                {uploadProgress
+                  ? `Uploading ${uploadProgress.current}/${uploadProgress.total}…`
+                  : "Uploading…"}
+              </span>
+            )}
             <button
               className="corpus-add"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              title="Add a PDF to this session only"
+              title="Add one or more PDFs to this session only"
             >
-              + Add PDF
+              + Add PDFs
             </button>
             <input
               ref={fileInputRef}
               type="file"
               accept="application/pdf"
+              multiple
               hidden
               onChange={handleFileSelected}
             />
