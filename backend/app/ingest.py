@@ -22,7 +22,7 @@ def run_ingest() -> dict:
             raise FileNotFoundError(f"Missing transcript: {path}")
         turns = parse_transcript(path, display_name)
         chunks = chunk_turns(turns, display_name)
-        n = vectorstore.index_chunks(chunks)
+        n = vectorstore.index_chunks(chunks, session_id=config.SHARED_SCOPE)
         summary[display_name] = {"turns": len(turns), "chunks": n}
         print(f"[ingest] {display_name}: {len(turns)} turns -> {n} chunks")
     return summary

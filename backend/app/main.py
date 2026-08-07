@@ -1,10 +1,11 @@
 """FastAPI backend for the Executive Oracle."""
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from . import agent, config, db, vectorstore
+from .parsing import chunk_plain_pages, chunk_turns, parse_pdf_bytes
 
 app = FastAPI(title="Executive Oracle API")
 
@@ -66,6 +67,7 @@ def rename_session(session_id: str, body: SessionRename):
 
 @app.delete("/api/sessions/{session_id}")
 def delete_session(session_id: str):
+    vectorstore.delete_session_data(session_id)  # no-op if nothing was uploaded
     db.delete_session(session_id)
     return {"ok": True}
 
@@ -73,6 +75,37 @@ def delete_session(session_id: str):
 @app.get("/api/sessions/{session_id}/messages")
 def get_messages(session_id: str):
     return db.get_messages(session_id)
+
+
+@app.get("/api/sessions/{session_id}/files")
+def list_files(session_id: str):
+    return db.list_session_files(session_id)
+
+
+@app.post("/api/sessions/{session_id}/files")
+async def upload_file(session_id: str, file: UploadFile = File(...)):
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+    data = await file.read()
+    if len(data) > config.MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="File too large (25MB max)")
+
+    display_name = file.filename
+    try:
+        turns = parse_pdf_bytes(data)
+        chunks = chunk_turns(turns, display_name) if turns else []
+        if not chunks:
+            # not a speaker-labeled transcript - fall back to plain page chunking
+            chunks = chunk_plain_pages(data, display_name)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not parse PDF: {e}")
+
+    if not chunks:
+        raise HTTPException(status_code=400, detail="No extractable text found in PDF")
+
+    n = vectorstore.index_chunks(chunks, session_id=session_id)
+    record = db.add_session_file(session_id, display_name, n)
+    return record
 
 
 @app.post("/api/ask")
@@ -87,7 +120,7 @@ def ask(body: AskRequest):
         db.rename_session(body.session_id, question[:60])
 
     try:
-        result = agent.ask(question)
+        result = agent.ask(question, session_id=body.session_id)
     except Exception as e:  # surface agent errors to the UI
         raise HTTPException(status_code=500, detail=str(e))
 

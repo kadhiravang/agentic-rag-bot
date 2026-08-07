@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import { ReferencesPanel } from "./components/ReferencesPanel";
-import type { Health, Message, Session } from "./types";
+import type { Health, Message, Session, SessionFile } from "./types";
 
 /** Render answer text, turning [n] markers into clickable citation chips. */
 function AnswerText({
@@ -45,7 +45,10 @@ export default function App() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [armedDeleteId, setArmedDeleteId] = useState<string | null>(null);
+  const [sessionFiles, setSessionFiles] = useState<SessionFile[]>([]);
+  const [uploading, setUploading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api.health().then(setHealth).catch(() => setError("Backend not reachable"));
@@ -74,6 +77,34 @@ export default function App() {
     const lastAssistant = [...msgs].reverse().find((m) => m.role === "assistant");
     setSelectedMsg(lastAssistant ?? null);
     setHighlighted(null);
+    api.listFiles(id).then(setSessionFiles).catch(() => setSessionFiles([]));
+  }
+
+  /** Returns the active session id, creating one first if there isn't one yet. */
+  async function ensureSession(): Promise<string> {
+    if (activeSession) return activeSession;
+    const s = await api.createSession();
+    setSessions((prev) => [s, ...prev]);
+    setActiveSession(s.id);
+    setSessionFiles([]);
+    return s.id;
+  }
+
+  async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setError(null);
+    setUploading(true);
+    try {
+      const sid = await ensureSession();
+      const record = await api.uploadFile(sid, file);
+      setSessionFiles((prev) => [...prev, record]);
+    } catch (err: any) {
+      setError(err.message ?? "Upload failed");
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function commitRename(id: string) {
@@ -107,18 +138,13 @@ export default function App() {
     setMessages([]);
     setSelectedMsg(null);
     setHighlighted(null);
+    setSessionFiles([]);
   }
 
   async function ask(question: string) {
     if (!question.trim() || busy) return;
     setError(null);
-    let sid = activeSession;
-    if (!sid) {
-      const s = await api.createSession();
-      setSessions((prev) => [s, ...prev]);
-      setActiveSession(s.id);
-      sid = s.id;
-    }
+    const sid = await ensureSession();
     setInput("");
     setBusy(true);
     const userMsg: Message = {
@@ -224,30 +250,39 @@ export default function App() {
                           }}
                           onMouseLeave={() => setArmedDeleteId(null)}
                         >
-                          Delete?
+                          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+                            <path d="M4.5 6h11M8 6V4.5h4V6M6 6l.6 9.5a1 1 0 0 0 1 .9h4.8a1 1 0 0 0 1-.9L14 6" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          Confirm
                         </button>
                       ) : (
                         <>
                           <button
                             className="icon-btn"
-                            title="Rename"
+                            title="Rename session"
+                            aria-label="Rename session"
                             onClick={(e) => {
                               e.stopPropagation();
                               setEditingId(s.id);
                               setEditTitle(s.title);
                             }}
                           >
-                            ✎
+                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+                              <path d="M13.5 3.5a1.5 1.5 0 0 1 2.12 0l.88.88a1.5 1.5 0 0 1 0 2.12L7.5 15.5 4 16.5l1-3.5 8.5-9.5Z" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
                           </button>
                           <button
                             className="icon-btn danger"
-                            title="Delete"
+                            title="Delete session"
+                            aria-label="Delete session"
                             onClick={(e) => {
                               e.stopPropagation();
                               setArmedDeleteId(s.id);
                             }}
                           >
-                            🗑
+                            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+                              <path d="M4.5 6h11M8 6V4.5h4V6M6 6l.6 9.5a1 1 0 0 0 1 .9h4.8a1 1 0 0 0 1-.9L14 6" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
                           </button>
                         </>
                       )}
@@ -270,6 +305,10 @@ export default function App() {
                   interviews — with citations to who said it, when, and where.
                 </p>
                 <p>If it isn't in the transcripts, the Oracle says so.</p>
+                <p>
+                  You can also add your own PDF transcript to this session — it's
+                  only visible here, never in other sessions.
+                </p>
               </div>
             )}
             {messages.map((m) => (
@@ -298,6 +337,33 @@ export default function App() {
           </div>
 
           {error && <div className="error-banner">{error}</div>}
+
+          <div className="corpus-bar">
+            <span className="corpus-label">Sources:</span>
+            <span className="corpus-chip default">Salvi Executive House transcripts</span>
+            {sessionFiles.map((f) => (
+              <span key={f.id} className="corpus-chip">
+                {f.filename}
+                <span className="corpus-chip-count">{f.chunks}</span>
+              </span>
+            ))}
+            {uploading && <span className="corpus-chip uploading">Uploading…</span>}
+            <button
+              className="corpus-add"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              title="Add a PDF transcript to this session only"
+            >
+              + Add PDF
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf"
+              hidden
+              onChange={handleFileSelected}
+            />
+          </div>
 
           <div className="presets">
             {presets.map((q) => (

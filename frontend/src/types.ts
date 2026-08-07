@@ -34,6 +34,14 @@ export interface Session {
   created_at: string;
 }
 
+export interface SessionFile {
+  id: string;
+  session_id: string;
+  filename: string;
+  chunks: number;
+  created_at: string;
+}
+
 export interface AskResponse {
   message_id: string;
   answer: string;

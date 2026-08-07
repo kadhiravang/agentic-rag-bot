@@ -36,6 +36,13 @@ def get_conn() -> sqlite3.Connection:
                 trace TEXT,
                 created_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS session_files (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL REFERENCES sessions(id),
+                filename TEXT NOT NULL,
+                chunks INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS citations (
                 id TEXT PRIMARY KEY,
                 message_id TEXT NOT NULL REFERENCES messages(id),
@@ -98,8 +105,30 @@ def delete_session(session_id: str) -> None:
         (session_id,),
     )
     conn.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
+    conn.execute("DELETE FROM session_files WHERE session_id = ?", (session_id,))
     conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
     conn.commit()
+
+
+def add_session_file(session_id: str, filename: str, chunks: int) -> dict:
+    conn = get_conn()
+    fid = str(uuid.uuid4())
+    conn.execute(
+        "INSERT INTO session_files (id, session_id, filename, chunks, created_at) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (fid, session_id, filename, chunks, _now()),
+    )
+    conn.commit()
+    return {"id": fid, "session_id": session_id, "filename": filename, "chunks": chunks}
+
+
+def list_session_files(session_id: str) -> list[dict]:
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT * FROM session_files WHERE session_id = ? ORDER BY created_at",
+        (session_id,),
+    ).fetchall()
+    return [dict(r) for r in rows]
 
 
 def add_message(

@@ -46,6 +46,7 @@ def _generate(model: str, system: str, prompt: str, schema: dict | None = None,
 
 class AgentState(TypedDict, total=False):
     question: str
+    session_id: str
     query: str
     retries: int
     retrieved: list[dict]
@@ -82,7 +83,7 @@ def rewrite_query(state: AgentState) -> AgentState:
 
 
 def retrieve(state: AgentState) -> AgentState:
-    hits = vectorstore.search_balanced(state["query"])
+    hits = vectorstore.search_balanced(state["query"], session_id=state.get("session_id"))
     trace = state.get("trace", []) + [
         {
             "step": "retrieve",
@@ -193,9 +194,9 @@ about these people or companies.
 right speaker.
 - If the chunks do not contain an answer, set covered=false and say plainly that \
 this wasn't covered in the provided transcripts. Never guess or infer.
-- There are two interviews (Eventbrite's Julia & Kevin Hartz; QED/Capital One's \
-Nigel Morris). When BOTH have relevant material, cover each briefly rather than \
-only one. If only one does, answer from that one alone.
+- Source chunks may come from more than one document. When several documents have \
+relevant material, cover each briefly rather than only one; if only one does, \
+answer from that one alone.
 - Keep answers focused: 2-6 sentences unless the question demands more."""
 
 
@@ -285,11 +286,13 @@ def build_graph():
 _graph = None
 
 
-def ask(question: str) -> dict[str, Any]:
+def ask(question: str, session_id: str) -> dict[str, Any]:
     global _graph
     if _graph is None:
         _graph = build_graph()
-    result = _graph.invoke({"question": question, "retries": 0, "trace": []})
+    result = _graph.invoke(
+        {"question": question, "session_id": session_id, "retries": 0, "trace": []}
+    )
     return {
         "answer": result["answer"],
         "covered": result["covered"],

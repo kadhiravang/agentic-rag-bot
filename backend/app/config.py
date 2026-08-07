@@ -18,14 +18,16 @@ EMBED_MODEL = "BAAI/bge-small-en-v1.5"
 ANSWER_MODEL = os.getenv("ANSWER_MODEL", "gemini-2.5-flash")
 GRADER_MODEL = os.getenv("GRADER_MODEL", "gemini-2.5-flash-lite")
 
-TOP_K = 8          # total; retrieval is balanced across transcripts
-PER_SOURCE_K = 4   # top-k fetched from each transcript
+TOP_K = 8          # total chunks handed to the grader/answerer
+PER_SOURCE_K = 4   # cap per distinct source document, so one file can't crowd out another
 MAX_RETRIEVAL_RETRIES = 1
 
-SOURCE_NAMES = [
-    "Eventbrite (Julia & Kevin Hartz)",
-    "QED Investors / Capital One (Nigel Morris)",
-]
+# Chunks from the default Salvi transcripts (ingest.py) carry this session_id so
+# every session can query them. Session-uploaded files are tagged with the real
+# session id and are only visible within that session - isolated from others.
+SHARED_SCOPE = "global"
+
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # 25MB per file
 
 PRESET_QUESTIONS = [
     "What's one piece of advice this executive gives about running a business?",

@@ -98,8 +98,8 @@ body {
 .session-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
+  gap: 4px;
+  padding: 7px 6px 7px 10px;
   border-radius: 8px;
   cursor: pointer;
   color: var(--text-dim);
@@ -114,32 +114,52 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.session-actions { display: none; gap: 2px; }
-.session-item:hover .session-actions { display: inline-flex; }
+.session-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+}
+.session-item:hover .session-actions,
+.session-item:focus-within .session-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
 .icon-btn {
-  border: none;
-  background: transparent;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  background: #fff;
   cursor: pointer;
-  font-size: 12px;
   color: var(--text-dim);
-  padding: 2px 4px;
-  border-radius: 5px;
+  border-radius: 7px;
   line-height: 1;
 }
-.icon-btn:hover { background: #e2e8e4; color: var(--text); }
-.icon-btn.danger:hover { color: var(--red); background: #f7e5e3; }
+.icon-btn svg { width: 15px; height: 15px; }
+.icon-btn:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-dark); }
+.icon-btn.danger:hover { color: var(--red); background: #fbeeed; border-color: var(--red); }
 .confirm-delete {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   border: 1px solid var(--red);
-  background: #fbeeed;
-  color: var(--red);
-  font-size: 11px;
+  background: var(--red);
+  color: #fff;
+  font-size: 12px;
   font-weight: 600;
-  border-radius: 6px;
-  padding: 2px 8px;
+  border-radius: 7px;
+  padding: 0 10px;
+  height: 28px;
   cursor: pointer;
   font-family: inherit;
+  white-space: nowrap;
 }
-.confirm-delete:hover { background: var(--red); color: #fff; }
+.confirm-delete:hover { background: #a5362f; border-color: #a5362f; }
+.confirm-delete svg { width: 13px; height: 13px; flex: none; }
 .rename-input {
   flex: 1;
   min-width: 0;
@@ -191,6 +211,54 @@ body {
   animation: pulse 1s infinite ease-in-out;
 }
 @keyframes pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+
+/* corpus bar (per-session sources) */
+.corpus-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 clamp(14px, 3vw, 36px) 10px;
+}
+.corpus-label { font-size: 11.5px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.corpus-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.corpus-chip.default { background: var(--accent-soft); border-color: #d3e7db; color: var(--accent-dark); font-weight: 500; }
+.corpus-chip.uploading { color: var(--text-dim); font-style: italic; }
+.corpus-chip-count {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 6px;
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+.corpus-add {
+  border: 1px dashed var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 3px 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.corpus-add:hover:not(:disabled) { background: var(--accent-soft); }
+.corpus-add:disabled { opacity: 0.5; cursor: default; }
 
 /* presets + composer */
 .presets { display: flex; gap: 8px; padding: 0 clamp(14px, 3vw, 36px) 10px; flex-wrap: wrap; }

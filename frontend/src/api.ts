@@ -1,4 +1,4 @@
-import type { AskResponse, Health, Message, Session } from "./types";
+import type { AskResponse, Health, Message, Session, SessionFile } from "./types";
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -31,6 +31,16 @@ export const api = {
     ),
   getMessages: (sessionId: string) =>
     fetch(`/api/sessions/${sessionId}/messages`).then((r) => json<Message[]>(r)),
+  listFiles: (sessionId: string) =>
+    fetch(`/api/sessions/${sessionId}/files`).then((r) => json<SessionFile[]>(r)),
+  uploadFile: (sessionId: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return fetch(`/api/sessions/${sessionId}/files`, {
+      method: "POST",
+      body: form,
+    }).then((r) => json<SessionFile>(r));
+  },
   ask: (sessionId: string, question: string) =>
     fetch("/api/ask", {
       method: "POST",
