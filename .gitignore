@@ -5,3 +5,5 @@ backend/.env
 frontend/node_modules/
 frontend/dist/
 __pycache__/
+~$*.docx
+~$*.doc
