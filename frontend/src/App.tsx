@@ -212,7 +212,7 @@ export default function App() {
         {health && (
           <span className="badge">
             <span className="dot" />
-            {health.vector_store.points} chunks indexed · {health.answer_model}
+            {sessionFiles.reduce((sum, f) => sum + f.chunks, 0)} chunks in this session · {health.answer_model}
           </span>
         )}
         <span className="badge user">
