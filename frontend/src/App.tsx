@@ -340,7 +340,7 @@ export default function App() {
                   <>
                     <AnswerText text={m.content} onCite={(n) => onCite(m, n)} />
                     {m.covered === false && (
-                      <div className="flag not-covered">⚠ Not covered in the provided transcripts</div>
+                      <div className="flag not-covered">⚠ Not covered in the provided documents</div>
                     )}
                     {m.covered === true && (
                       <div className="flag grounded">✓ Grounded · {m.citations.length} citations</div>

@@ -4,7 +4,7 @@ with one retrieval retry and a grounded refusal path.
 LLM: Google Gemini (google-genai SDK, GEMINI_API_KEY). Structured outputs are
 enforced with response_schema so citations always parse.
 
-Grounding contract: answers come ONLY from retrieved transcript chunks. If the
+Grounding contract: answers come ONLY from retrieved document chunks. If the
 evidence doesn't cover the question, the agent says so instead of guessing.
 """
 
@@ -69,7 +69,7 @@ def rewrite_query(state: AgentState) -> AgentState:
     query = _generate(
         config.GRADER_MODEL,
         system=(
-            "You turn a user question about executive interview transcripts into a "
+            "You turn a user question about the uploaded documents into a "
             "short search query for semantic retrieval. Return only the query text."
             + retry_note
         ),
@@ -87,8 +87,8 @@ def retrieve(state: AgentState) -> AgentState:
     trace = state.get("trace", []) + [
         {
             "step": "retrieve",
-            "detail": f"{len(hits)} chunks from Qdrant, balanced across both "
-            f"transcripts (top score {hits[0]['score'] if hits else 'n/a'})",
+            "detail": f"{len(hits)} chunks from Qdrant, balanced across "
+            f"documents (top score {hits[0]['score'] if hits else 'n/a'})",
         }
     ]
     return {"retrieved": hits, "trace": trace}
@@ -121,11 +121,11 @@ def grade(state: AgentState) -> AgentState:
     raw = _generate(
         config.GRADER_MODEL,
         system=(
-            "You are a strict relevance grader for a RAG pipeline over interview "
-            "transcripts. Given a question and candidate chunks, return the indices "
-            "of chunks that actually help answer the question. Small talk, mic "
-            "checks, and off-topic banter are not relevant. If nothing helps, "
-            "return an empty list."
+            "You are a strict relevance grader for a RAG pipeline over uploaded "
+            "documents. Given a question and candidate chunks, return the indices "
+            "of chunks that actually help answer the question. Boilerplate and "
+            "off-topic content are not relevant. If nothing helps, return an "
+            "empty list."
         ),
         prompt=f"Question: {state['question']}\n\nCandidate chunks:\n\n{listing}",
         schema=GRADE_SCHEMA,
@@ -156,14 +156,14 @@ ANSWER_SCHEMA = {
     "properties": {
         "covered": {
             "type": "boolean",
-            "description": "true only if the transcripts contain enough information "
+            "description": "true only if the source chunks contain enough information "
             "to answer the question",
         },
         "answer": {
             "type": "string",
             "description": "The answer, with inline citation markers like [1], [2] "
             "referring to the numbered source chunks. If not covered, a short "
-            "statement that the topic wasn't covered in the provided transcripts.",
+            "statement that the topic wasn't covered in the provided documents.",
         },
         "cited_chunks": {
             "type": "array",
@@ -187,13 +187,12 @@ ANSWER_SYSTEM = """You are a grounded Q&A assistant that answers questions stric
 documents uploaded to this session.
 
 Hard rules:
-- Answer ONLY from the numbered source chunks provided. Never use outside knowledge \
-about these people or companies.
+- Answer ONLY from the numbered source chunks provided. Never use outside knowledge.
 - Every claim must carry an inline citation marker [n] pointing at the chunk it came from.
-- Quote or closely paraphrase what was actually said; attribute statements to the \
-right speaker.
+- Quote or closely paraphrase the source text; if a chunk has speaker attribution, \
+attribute statements to the right speaker.
 - If the chunks do not contain an answer, set covered=false and say plainly that \
-this wasn't covered in the provided transcripts. Never guess or infer.
+this wasn't covered in the provided documents. Never guess or infer.
 - Source chunks may come from more than one document. When several documents have \
 relevant material, cover each briefly rather than only one; if only one does, \
 answer from that one alone.
@@ -252,7 +251,7 @@ def not_covered(state: AgentState) -> AgentState:
     ]
     return {
         "covered": False,
-        "answer": "This wasn't covered in the provided transcripts.",
+        "answer": "This wasn't covered in the provided documents.",
         "citations": [],
         "trace": trace,
     }
