@@ -183,8 +183,8 @@ ANSWER_SCHEMA = {
     "required": ["covered", "answer", "cited_chunks"],
 }
 
-ANSWER_SYSTEM = """You are the Executive Oracle: a grounded Q&A assistant over Salvi's \
-Executive House interview transcripts.
+ANSWER_SYSTEM = """You are a grounded Q&A assistant that answers questions strictly from the \
+documents uploaded to this session.
 
 Hard rules:
 - Answer ONLY from the numbered source chunks provided. Never use outside knowledge \

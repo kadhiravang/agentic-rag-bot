@@ -205,9 +205,9 @@ export default function App() {
     <>
       <header className="header">
         <span className="logo">
-          Salvi <em>· Executive Oracle</em>
+          Agentic <em>RAG Bot</em>
         </span>
-        <span className="subtitle">Executive House transcripts</span>
+        <span className="subtitle">Session-scoped document Q&amp;A</span>
         <span className="spacer" />
         {health && (
           <span className="badge">
@@ -318,7 +318,7 @@ export default function App() {
                   shared or preloaded. Add the PDFs you want this session to know
                   about.
                 </p>
-                <p>Answers are grounded and cited. If it isn't in this session's documents, the Oracle says so.</p>
+                <p>Answers are grounded and cited. If it isn't in this session's documents, it says so.</p>
                 {sessionFiles.length === 0 && (
                   <div className="empty-actions">
                     <button
@@ -407,7 +407,7 @@ export default function App() {
           <div className="composer">
             <input
               value={input}
-              placeholder="Ask anything about the interviews…"
+              placeholder="Ask anything about the documents…"
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && ask(input)}
               disabled={busy}

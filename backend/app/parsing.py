@@ -1,4 +1,4 @@
-"""Parse Executive House interview transcript PDFs into speaker turns and chunks.
+"""Parse speaker-labeled transcript PDFs into speaker turns and chunks.
 
 Transcript format: "Speaker Name: text ..." paragraphs with inline [HH:MM:SS]
 timestamp markers roughly once per minute.

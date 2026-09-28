@@ -1,4 +1,4 @@
-"""FastAPI backend for the Executive Oracle."""
+"""FastAPI backend for Agentic RAG Bot."""
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from . import agent, config, db, vectorstore
 from .parsing import chunk_plain_pages, chunk_turns, parse_pdf_bytes
 
-app = FastAPI(title="Executive Oracle API")
+app = FastAPI(title="Agentic RAG Bot API")
 
 app.add_middleware(
     CORSMiddleware,
